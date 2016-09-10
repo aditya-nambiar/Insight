@@ -37,7 +37,7 @@ public class Utils {
                 for (int i = 0; i < count; i++) {
                     bfsQueue.add(node.getChild(i));
                 }
-                node.recycle();
+//                node.recycle();
             }
         }
         return nodeList;
@@ -64,7 +64,7 @@ public class Utils {
                 for (int i = 0; i < count; i++) {
                     bfsQueue.add(node.getChild(i));
                 }
-                node.recycle();
+//                node.recycle();
             }
         }
         return nodeList;

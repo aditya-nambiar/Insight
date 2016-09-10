@@ -4,11 +4,11 @@
   "packageName": "com.flipkart.android",
   "startTrigger": {
     "onEvent" : "click",
-    "xpath": "add_to_cart",
+    "xpath": "com.flipkart.android:id/product_addtocart_1",
     "packageName": "com.flipkart.android",
     "activityIdentifier": {
-      "containsText": ["ratings", "reviews", "description", "ratings"],
-      "containsXpath": ["//node[@resource-id='com.flipkart.android:id/vg_scrollable_header']"]
+      "containsText": ["Share", "Wishlist"],
+      "containsXpath": ["com.flipkart.android:id/product_addtocart_1"]
     }
   },
   "params": [
