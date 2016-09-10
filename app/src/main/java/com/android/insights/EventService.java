@@ -50,6 +50,13 @@ import java.util.Map;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerConfigurationException;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpressionException;
@@ -120,9 +127,8 @@ public class EventService extends android.accessibilityservice.AccessibilityServ
 
         for( String str : activityIdentifier.getContainsXpath()) {
             Log.v(TAG, str);
-            Node node = (Node) xPath.compile(str).evaluate(xmlDocument, XPathConstants.NODE);
-            Log.v(TAG, "Node - " + node);
-            if(node == null) {
+            NodeList nodelist = (NodeList) xPath.compile(str).evaluate(xmlDocument, XPathConstants.NODESET);
+            if(nodelist.getLength() == 0) {
                 return false;
             }
         }
@@ -177,13 +183,17 @@ public class EventService extends android.accessibilityservice.AccessibilityServ
         try {
             saveFile("flipkart.xml", writer.toString());
             Log.v(TAG, "writing to flipkart.xml");
-            Log.v(TAG, writer.toString());
-            xmlDocument = builder.parse(writer.toString());
+            Log.v(TAG, writer.toString().substring(0,500));
+            xmlDocument = builder.parse(new ByteArrayInputStream(writer.toString().getBytes("utf-8")));
 
         } catch (SAXException e) {
             e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
+        }
+
+        if(xmlDocument == null){
+            Log.v(TAG, "Im fucked again here");
         }
 
         return xmlDocument;
@@ -193,6 +203,7 @@ public class EventService extends android.accessibilityservice.AccessibilityServ
     public void onAccessibilityEvent(AccessibilityEvent event) {
         AccessibilityNodeInfo root = this.getRootInActiveWindow();
         if(root == null) return;
+        if(event == null || event.getPackageName() == null) return;
         String package_name = event.getPackageName().toString();
 //        Log.v(TAG, package_name + " " + allSurveys.containsKey(package_name));
         // check if trigger exists for current active app
@@ -205,14 +216,38 @@ public class EventService extends android.accessibilityservice.AccessibilityServ
             if (xmlDocument == null) {
                 xmlDocument = convertAccessibiltyNodetoXML(root);
             }
+            if(xmlDocument == null){
+                Log.v(TAG, "Im fucked again here also");
+            }
 //            Log.v(TAG, xmlDocument.toString());
             Log.v(TAG, "Got xml doc");
             // check if survey is for current app screen
             try {
+                Node node = (Node) xPath.compile("//node").evaluate(xmlDocument, XPathConstants.NODE);
+                NodeList nodelist = (NodeList) xPath.compile("//node").evaluate(xmlDocument, XPathConstants.NODESET);
+                String str2 = xPath.compile("//node").evaluate(xmlDocument);
+                if( xmlDocument == null){
+                    Log.v(TAG, "Im fucked");
+                }
+                TransformerFactory tf = TransformerFactory.newInstance();
+                Transformer transformer = tf.newTransformer();
+                transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
+                StringWriter writer = new StringWriter();
+                transformer.transform(new DOMSource(xmlDocument), new StreamResult(writer));
+                String output = writer.getBuffer().toString();
+                Log.v(TAG, output.substring(1,500));
+                if(str2 != "" || !str2.isEmpty() || nodelist.getLength() != 0 || node != null){
+                    Log.v(TAG, "yayay");
+                }
+
                 if (isValidActivityIdentifier(xmlDocument, currSurvey.getStartTrigger().getActivityIdentifier())) {
                     Log.v(TAG, "Event Triggered");
                 }
             } catch (XPathExpressionException e) {
+                e.printStackTrace();
+            } catch (TransformerConfigurationException e) {
+                e.printStackTrace();
+            } catch (TransformerException e) {
                 e.printStackTrace();
             }
         }

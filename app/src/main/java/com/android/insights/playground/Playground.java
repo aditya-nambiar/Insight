@@ -70,7 +70,7 @@ public class Playground {
             XPath xPath =  XPathFactory.newInstance().newXPath();
             String str = "//node[@resource-id='com.flipkart.android:id/product_addtocart_1']";
             String str1 = "//node";
-            NodeList nodeList = (NodeList) xPath.compile(str).evaluate(xmlDocument, XPathConstants.NODESET);
+            NodeList nodeList = (NodeList) xPath.compile(str1).evaluate(xmlDocument, XPathConstants.NODESET);
             /*if(node.isEmpty() || node == ""){
                 System.out.println("KATA");
             } else {
