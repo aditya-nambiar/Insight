@@ -1,0 +1,26 @@
+[{
+  "surveyId": "flipkart-survey",
+  "eventType": "instant",
+  "packageName": "com.flipkart.android",
+  "startTrigger": {
+    "onEvent" : "click",
+    "xpath": "add_to_cart",
+    "packageName": "com.flipkart.android",
+    "activityIdentifier": {
+      "containsText": ["ratings", "reviews", "description", "ratings"],
+      "containsXpath": ["//node[@resource-id='com.flipkart.android:id/vg_scrollable_header']"]
+    }
+  },
+  "params": [
+    {
+      "type": "Integer",
+      "name": "price",
+      "xpath": "/home/body"
+    },
+    {
+      "type": "Integsdfer",
+      "name": "pricsdfe",
+      "xpath": "/homesdf/body"
+    }
+  ]
+}]
