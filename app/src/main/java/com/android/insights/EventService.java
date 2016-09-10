@@ -12,6 +12,8 @@ import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 
 import com.android.insights.models.ActivityIdentifier;
+import com.android.insights.models.Datapoint;
+import com.android.insights.models.EventParam;
 import com.android.insights.models.EventTrigger;
 import com.android.insights.models.Survey;
 import com.android.volley.Request;
@@ -46,6 +48,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -68,20 +71,36 @@ public class EventService extends android.accessibilityservice.AccessibilityServ
     private static final String TAG = "EventService";
     private static String current_package = "";
     private static Long start_time;
-    private RequestQueue queue;
     private static  HashMap<String, ArrayList<Survey> > allSurveys;
     private static  XPath xPath;
-
+    private RequestQueue queue;
 
     @Override
     public void onServiceConnected() {
         Log.v(TAG, "Service connected");
+        queue = Volley.newRequestQueue(this);
+
         allSurveys = new HashMap<String, ArrayList<Survey>>();
         // read surveys.json
         String allSurveysStr = readSurveys();
         initTriggers(allSurveysStr);
         Log.v(TAG, allSurveys.size() + "surveys");
         xPath =  XPathFactory.newInstance().newXPath();
+
+        initUserData();
+    }
+
+    void initUserData() {
+        Random rand = new Random();
+        HashMap<String, String> userDataMap =  new HashMap<String, String>();
+        String userId = Settings.Secure.getString(this.getContentResolver(),
+                Settings.Secure.ANDROID_ID);
+        String gender = rand.nextFloat() > 0.5 ? "M" : "F";
+        Integer age = rand.nextInt(10) + 20;
+        userDataMap.put("userId", userId);
+        userDataMap.put("gender", gender);
+        userDataMap.put("age", age.toString());
+        Datapoint.setUserData(userDataMap);
     }
 
     void initTriggers(String content){
@@ -123,8 +142,15 @@ public class EventService extends android.accessibilityservice.AccessibilityServ
         return "";
     }
 
-    boolean isValidActivityIdentifier(Document xmlDocument, ActivityIdentifier activityIdentifier) throws XPathExpressionException {
+    boolean isValidActivityIdentifier(AccessibilityNodeInfo root, Document xmlDocument ,ActivityIdentifier activityIdentifier) throws XPathExpressionException {
+        List<String> textList = Utils.getTextListFromNode(root);
+        for( String str : activityIdentifier.getContainsText()) {
+            if(!textList.contains(str)) {
+                return false;
+            }
+        }
 
+        // resource-id
         for( String str : activityIdentifier.getContainsXpath()) {
             Log.v(TAG, str);
             NodeList nodelist = (NodeList) xPath.compile(str).evaluate(xmlDocument, XPathConstants.NODESET);
@@ -132,7 +158,7 @@ public class EventService extends android.accessibilityservice.AccessibilityServ
                 return false;
             }
         }
-            return true;
+        return true;
     }
 
     private void saveFile(String filename, String data) {
@@ -181,9 +207,6 @@ public class EventService extends android.accessibilityservice.AccessibilityServ
             e.printStackTrace();
         }
         try {
-            saveFile("flipkart.xml", writer.toString());
-            Log.v(TAG, "writing to flipkart.xml");
-            Log.v(TAG, writer.toString().substring(0,500));
             xmlDocument = builder.parse(new ByteArrayInputStream(writer.toString().getBytes("utf-8")));
 
         } catch (SAXException e) {
@@ -192,11 +215,17 @@ public class EventService extends android.accessibilityservice.AccessibilityServ
             e.printStackTrace();
         }
 
-        if(xmlDocument == null){
-            Log.v(TAG, "Im fucked again here");
+        return xmlDocument;
+    }
+
+    String extractParam(AccessibilityNodeInfo root, EventParam param) {
+        List<AccessibilityNodeInfo> list = root.findAccessibilityNodeInfosByViewId(param.getXpath());
+        if(list.size() > 0) {
+            String val = list.get(0).getText().toString();
+            return val;
         }
 
-        return xmlDocument;
+        return "";
     }
 
     @Override
@@ -204,54 +233,67 @@ public class EventService extends android.accessibilityservice.AccessibilityServ
         AccessibilityNodeInfo root = this.getRootInActiveWindow();
         if(root == null) return;
         if(event == null || event.getPackageName() == null) return;
+
         String package_name = event.getPackageName().toString();
-//        Log.v(TAG, package_name + " " + allSurveys.containsKey(package_name));
-        // check if trigger exists for current active app
         Document xmlDocument = null;
-        if(allSurveys == null || allSurveys.isEmpty() || !allSurveys.containsKey(package_name)) {
+
+        if(event.getEventType() != AccessibilityEvent.TYPE_VIEW_CLICKED) {
             return;
         }
-        Log.v(TAG, root.findAccessibilityNodeInfosByViewId("com.flipkart.android:id/vg_scrollable_header").size() + "");
-        for(Survey currSurvey : allSurveys.get(package_name)){
+
+        if (allSurveys == null || allSurveys.isEmpty() || !allSurveys.containsKey(package_name)) {
+            return;
+        }
+        Log.v(TAG, package_name + allSurveys.containsKey(package_name));
+        for (Survey currSurvey : allSurveys.get(package_name)) {
+            Log.v(TAG, "source -" + event.getSource().getViewIdResourceName() + " = " + currSurvey.getStartTrigger().getXpath());
+
+            if (!event.getSource().getViewIdResourceName().equals(currSurvey.getStartTrigger().getXpath())) {
+                continue;
+            }
+
             if (xmlDocument == null) {
                 xmlDocument = convertAccessibiltyNodetoXML(root);
             }
-            if(xmlDocument == null){
-                Log.v(TAG, "Im fucked again here also");
-            }
+
 //            Log.v(TAG, xmlDocument.toString());
             Log.v(TAG, "Got xml doc");
             // check if survey is for current app screen
             try {
-                Node node = (Node) xPath.compile("//node").evaluate(xmlDocument, XPathConstants.NODE);
-                NodeList nodelist = (NodeList) xPath.compile("//node").evaluate(xmlDocument, XPathConstants.NODESET);
-                String str2 = xPath.compile("//node").evaluate(xmlDocument);
-                if( xmlDocument == null){
-                    Log.v(TAG, "Im fucked");
-                }
-                TransformerFactory tf = TransformerFactory.newInstance();
-                Transformer transformer = tf.newTransformer();
-                transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
-                StringWriter writer = new StringWriter();
-                transformer.transform(new DOMSource(xmlDocument), new StreamResult(writer));
-                String output = writer.getBuffer().toString();
-                Log.v(TAG, output.substring(1,500));
-                if(str2 != "" || !str2.isEmpty() || nodelist.getLength() != 0 || node != null){
-                    Log.v(TAG, "yayay");
-                }
 
-                if (isValidActivityIdentifier(xmlDocument, currSurvey.getStartTrigger().getActivityIdentifier())) {
+                if (isValidActivityIdentifier(root, xmlDocument, currSurvey.getStartTrigger().getActivityIdentifier())) {
                     Log.v(TAG, "Event Triggered");
                 }
             } catch (XPathExpressionException e) {
                 e.printStackTrace();
-            } catch (TransformerConfigurationException e) {
-                e.printStackTrace();
-            } catch (TransformerException e) {
-                e.printStackTrace();
+            }
+            Log.v(TAG, "checking activity validity");
+            // check if survey is for current app screen
+            try {
+                if (isValidActivityIdentifier(root, xmlDocument, currSurvey.getStartTrigger().getActivityIdentifier())) {
+                    // extract parameters
+                    Log.v(TAG, "building params");
+                    HashMap<String, String> paramMap = new HashMap<String, String>();
+                    for (EventParam param : currSurvey.getParams()) {
+                        paramMap.put(param.getName(), extractParam(root, param));
+                    }
+
+                    // send data
+
+                    Datapoint dp = new Datapoint(currSurvey.getSurveyId(), System.currentTimeMillis(), System.currentTimeMillis(),
+                            package_name, paramMap);
+                    Log.v(TAG, "sending request" + dp);
+                    try {
+                        queue.add(dp.createRequest());
+                    } catch (JSONException e2) {
+                        e2.printStackTrace();
+                    }
+                }
+            } catch (XPathExpressionException e1) {
+                e1.printStackTrace();
             }
         }
-            // extract parameters
+
     }
 
     @Override
