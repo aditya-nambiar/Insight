@@ -50,6 +50,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
+import javax.xml.namespace.QName;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -218,20 +219,32 @@ public class EventService extends android.accessibilityservice.AccessibilityServ
         return xmlDocument;
     }
 
-    String extractParam(AccessibilityNodeInfo root, EventParam param) {
-        List<AccessibilityNodeInfo> list = root.findAccessibilityNodeInfosByViewId(param.getXpath());
-        if(list.size() > 0) {
-            String val = list.get(0).getText().toString();
-            return val;
+    /*QName getXPathDataType(String type) {
+        if (type.equalsIgnoreCase("string")) {
+            return XPathConstants.STRING;
+        }else if (type.equalsIgnoreCase("integer")) {
+            return XPathConstants.NUMBER;
+        }else if (type.equalsIgnoreCase("boolean")) {
+            return XPathConstants.
         }
+    }*/
 
+    String extractParam(AccessibilityNodeInfo root, Document xmlDocument, EventParam param)  {
+        String xpath = param.getXpath();
+        try {
+            String value = (String) xPath.compile(xpath).evaluate(xmlDocument, XPathConstants.STRING);
+            Log.v(TAG, "Param" + param.getName() + " = " + value);
+            return value;
+        } catch (XPathExpressionException e) {
+            e.printStackTrace();
+        }
         return "";
     }
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
         AccessibilityNodeInfo root = this.getRootInActiveWindow();
-        if(root == null) return;
+        if(root == null || event.getSource() == null || event.getSource().getViewIdResourceName() == null) return;
         if(event == null || event.getPackageName() == null) return;
 
         String package_name = event.getPackageName().toString();
@@ -275,7 +288,7 @@ public class EventService extends android.accessibilityservice.AccessibilityServ
                     Log.v(TAG, "building params");
                     HashMap<String, String> paramMap = new HashMap<String, String>();
                     for (EventParam param : currSurvey.getParams()) {
-                        paramMap.put(param.getName(), extractParam(root, param));
+                        paramMap.put(param.getName(), extractParam(root, xmlDocument, param));
                     }
 
                     // send data

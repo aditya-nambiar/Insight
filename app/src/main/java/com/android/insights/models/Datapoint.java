@@ -112,6 +112,7 @@ public class Datapoint {
             obj.put("startTime", startTime);
             obj.put("endTime", endTime);
             obj.put("userData", new JSONObject(userData));
+            obj.put("params", new JSONObject(params));
 //            obj.put("app_category", packages_to_category.get(package_name));
             Log.v(TAG, "request data - " + obj);
             // Request a string response from the provided URL.

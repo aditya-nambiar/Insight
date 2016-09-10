@@ -15,12 +15,7 @@
     {
       "type": "Integer",
       "name": "price",
-      "xpath": "/home/body"
-    },
-    {
-      "type": "Integsdfer",
-      "name": "pricsdfe",
-      "xpath": "/homesdf/body"
+      "xpath": "(//node[@resource-id='com.flipkart.android:id/product_list_product_item_mrp'])[1]/@text"
     }
   ]
 }]

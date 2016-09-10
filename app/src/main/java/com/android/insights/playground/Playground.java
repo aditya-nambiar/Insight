@@ -7,6 +7,7 @@ import com.android.insights.models.Survey;
 import com.google.gson.GsonBuilder;
 
 import org.w3c.dom.Document;
+import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
@@ -70,14 +71,15 @@ public class Playground {
             XPath xPath =  XPathFactory.newInstance().newXPath();
             String str = "//node[@resource-id='com.flipkart.android:id/product_addtocart_1']";
             String str1 = "//node";
-            NodeList nodeList = (NodeList) xPath.compile(str1).evaluate(xmlDocument, XPathConstants.NODESET);
+//            NodeList nodeList = (NodeList) xPath.compile(str1).evaluate(xmlDocument, XPathConstants.NODESET);
             /*if(node.isEmpty() || node == ""){
                 System.out.println("KATA");
             } else {
                 System.out.println("CHAlA");
 
             }*/
-
+            String xpath = "(//node[@resource-id=\"com.flipkart.android:id/product_list_product_item_mrp\"])[1]/@text";
+            String node = (String) xPath.compile(xpath).evaluate(xmlDocument, XPathConstants.STRING);
 
             System.out.println(xmlDocument);
 
